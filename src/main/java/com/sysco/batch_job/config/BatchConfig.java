@@ -13,7 +13,6 @@ import org.springframework.batch.item.file.LineMapper;
 import org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper;
 import org.springframework.batch.item.file.mapping.DefaultLineMapper;
 import org.springframework.batch.item.file.transform.DelimitedLineTokenizer;
-import org.springframework.batch.item.file.transform.LineAggregator;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.FileSystemResource;
@@ -22,13 +21,16 @@ import org.springframework.transaction.PlatformTransactionManager;
 @Configuration
 @RequiredArgsConstructor
 public class BatchConfig {
+    private final PersonAggregator personAggregator;
+    private final PersonProcessor personProcessor;
+    private final PersonProcessor2 personProcessor2;
 
     @Bean
     public Step step(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
         return new StepBuilder("importData", jobRepository)
                 .<PersonDTO, String>chunk(10, transactionManager)
                 .reader(itemReader())
-                .processor(processor())
+                .processor(personProcessor)
                 .writer(itemWriter())
                 .build();
     }
@@ -38,7 +40,7 @@ public class BatchConfig {
         return new StepBuilder("importData2", jobRepository)
                 .<PersonDTO, String>chunk(10, transactionManager)
                 .reader(itemReader())
-                .processor(processor2())
+                .processor(personProcessor2)
                 .writer(itemWriter2())
                 .build();
     }
@@ -62,22 +64,12 @@ public class BatchConfig {
     }
 
     @Bean
-    public PersonProcessor processor() {
-        return new PersonProcessor();
-    }
-
-    @Bean
-    public PersonProcessor2 processor2() {
-        return new PersonProcessor2();
-    }
-
-    @Bean
     public FlatFileItemWriter<String> itemWriter() {
         FlatFileItemWriter<String> itemWriter = new FlatFileItemWriter<>();
 
         itemWriter.setResource(new FileSystemResource("src/main/resources/datasource.txt"));
         itemWriter.setName("itemWriter");
-        itemWriter.setLineAggregator(getAggregator());
+        itemWriter.setLineAggregator(personAggregator);
         return itemWriter;
     }
 
@@ -87,12 +79,8 @@ public class BatchConfig {
 
         itemWriter.setResource(new FileSystemResource("src/main/resources/datasource1.txt"));
         itemWriter.setName("itemWriter1");
-        itemWriter.setLineAggregator(getAggregator());
+        itemWriter.setLineAggregator(personAggregator);
         return itemWriter;
-    }
-
-    private LineAggregator<String> getAggregator() {
-        return new PersonAggregator();
     }
 
     private LineMapper<PersonDTO> lineMapper() {
